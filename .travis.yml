@@ -1,0 +1,15 @@
+language: go
+go:
+ - 1.2.2
+ - 1.3
+install:
+ - go get code.google.com/p/go.tools/cmd/vet
+ - go get -t -v ./...
+ - export GOBIN=~/bin
+ - export PATH=$PATH:~/bin
+ - go install github.com/rjeczalik/which/cmd/gowhich
+script:
+ - go tool vet -all .
+ - go build ./...
+ - go test -race -v ./...
+ - [ "$(gowhich gowhich)" == "github.com/rjeczalik/which/cmd/gowhich" ]
