@@ -9,16 +9,16 @@ import (
 	"strings"
 )
 
-type Cmd struct {
+type Program struct {
 	Path    string
 	Package string
 }
 
-var errNotFound = errors.New("error whichgo: not found")
-var errNotGoExec = errors.New("error whichgo: not a Go executable")
-var errGuessFail = errors.New("error whichgo: unable to guess package main import path")
+var errNotFound = errors.New("which: executable not found in $PATH")
+var errNotGoExec = errors.New("which: not a Go executable")
+var errGuessFail = errors.New("which: unable to guess an import path of main package")
 
-func Lookup(name string) (*Cmd, error) {
+func Lookup(name string) (*Program, error) {
 	path, err := exec.LookPath(name)
 	if err != nil {
 		return nil, errNotFound
@@ -68,5 +68,5 @@ func Lookup(name string) (*Cmd, error) {
 	if pkg == "" {
 		return nil, errGuessFail
 	}
-	return &Cmd{Path: path, Package: pkg}, nil
+	return &Program{Path: path, Package: pkg}, nil
 }

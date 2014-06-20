@@ -12,7 +12,7 @@ func die(v interface{}) {
 	os.Exit(1)
 }
 
-const usage = "usage: whichgo <command>"
+const usage = "usage: gowhich programname"
 
 func main() {
 	if len(os.Args) != 2 {
