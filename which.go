@@ -1,8 +1,6 @@
 package which
 
 import (
-	"debug/elf"
-	"debug/gosym"
 	"errors"
 	"os"
 	"os/exec"
@@ -28,7 +26,7 @@ func init() {
 var (
 	ErrNotFound  = errors.New("which: executable not found in $PATH")
 	ErrNotGoExec = errors.New("which: not a Go executable")
-	ErrGuessFail = errors.New("which: unable to guess an import path of main package")
+	ErrGuessFail = errors.New("which: unable to guess an import path of the main package")
 )
 
 // LookPath reads the import name of main package of the Go program by its name;
@@ -44,41 +42,12 @@ func LookPath(name string) (path, importpath string, err error) {
 // Look reads the import name of main package of the Go executable under
 // the given path.
 func Look(path string) (importpath string, err error) {
-	f, err := elf.Open(path)
+	ex, err := NewExecutable(path)
 	if err != nil {
-		return "", ErrNotGoExec
-	}
-	defer f.Close()
-	sym := f.Section(".gosymtab")
-	if sym == nil {
-		return "", ErrNotGoExec
-	}
-	symdat, err := sym.Data()
-	if err != nil {
-		return "", ErrNotGoExec
-	}
-	pcln := f.Section(".gopclntab")
-	if pcln == nil {
-		return "", ErrNotGoExec
-	}
-	pclndat, err := pcln.Data()
-	if err != nil {
-		return "", ErrNotGoExec
-	}
-	text := f.Section(".text")
-	if text == nil {
-		return "", ErrNotGoExec
-	}
-	lntab := gosym.NewLineTable(pclndat, text.Addr)
-	if lntab == nil {
-		return "", ErrNotGoExec
-	}
-	tab, err := gosym.NewTable(symdat, lntab)
-	if err != nil {
-		return "", ErrNotGoExec
+		return
 	}
 	var dirs = make(map[string]struct{})
-	for file, obj := range tab.Files {
+	for file, obj := range ex.Table.Files {
 		for i := range obj.Funcs {
 			// main.main symbol is referenced by every file of each package
 			// imported by the main package of the executable.
