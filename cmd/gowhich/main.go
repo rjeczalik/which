@@ -18,7 +18,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
+	"os/exec"
 
 	"github.com/rjeczalik/which"
 )
@@ -50,15 +50,11 @@ func main() {
 		fmt.Println(usage)
 		return
 	}
-	var (
-		imp string
-		err error
-	)
-	if strings.Contains(os.Args[1], string(os.PathSeparator)) {
-		imp, err = which.Look(os.Args[1])
-	} else {
-		_, imp, err = which.LookPath(os.Args[1])
+	path, err := exec.LookPath(os.Args[1])
+	if err != nil {
+		die(err)
 	}
+	imp, err := which.Import(path)
 	if err != nil {
 		die(err)
 	}

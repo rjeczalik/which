@@ -1,9 +1,11 @@
 package which
 
 import (
+	"debug/elf"
+	"debug/gosym"
 	"errors"
+	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -23,31 +25,89 @@ func init() {
 	}
 }
 
+// TODO(rjeczalik): support rest platform types
+
+var newfns []func(string) (*PlatformType, []byte, []byte, uint64, error)
+
+func init() {
+	switch runtime.GOOS {
+	case "darwin":
+		newfns = append(newfns, newmacho, newelf, newpe)
+	case "windows":
+		newfns = append(newfns, newpe, newmacho, newelf)
+	default:
+		newfns = append(newfns, newelf, newmacho, newpe)
+	}
+}
+
 var (
-	ErrNotFound  = errors.New("which: executable not found in $PATH")
+	// ErrNotGoExec is an error.
 	ErrNotGoExec = errors.New("which: not a Go executable")
+	// ErrGuessFail is an error.
 	ErrGuessFail = errors.New("which: unable to guess an import path of the main package")
 )
 
-// LookPath reads the import name of main package of the Go program by its name;
-// the program is looked up in $PATH.
-func LookPath(name string) (path, importpath string, err error) {
-	if path, err = exec.LookPath(name); err != nil {
-		return
-	}
-	importpath, err = Look(path)
-	return
+// PlatformType represents the target platform of the executable.
+type PlatformType struct {
+	GOOS   string // target operating system
+	GOARCH string // target architecture
 }
 
-// Look reads the import name of main package of the Go executable under
-// the given path.
-func Look(path string) (importpath string, err error) {
-	ex, err := NewExecutable(path)
+// String gives Go platform string.
+func (etyp PlatformType) String() string {
+	return etyp.GOOS + "_" + etyp.GOARCH
+}
+
+var (
+	// PlatformDarwin386 represents the darwin_386 target arch.
+	PlatformDarwin386 = &PlatformType{"darwin", "386"}
+	// PlatformDarwinAMD64 represents the darwin_amd64 target arch.
+	PlatformDarwinAMD64 = &PlatformType{"darwin", "amd64"}
+	// PlatformFreeBSD386 represents the freebsd_386 target arch.
+	PlatformFreeBSD386 = &PlatformType{"freebsd", "386"}
+	// PlatformFreeBSDAMD64 represents the freebsd_amd64 target arch.
+	PlatformFreeBSDAMD64 = &PlatformType{"freebsd", "amd64"}
+	// PlatformLinux386 represents the linux_386 target arch.
+	PlatformLinux386 = &PlatformType{"linux", "386"}
+	// PlatformLinuxAMD64 represents the linux_amd64 target arch.
+	PlatformLinuxAMD64 = &PlatformType{"linux", "amd64"}
+	// PlatformWindows386 represents the windows_386 target arch.
+	PlatformWindows386 = &PlatformType{"windows", "386"}
+	// PlatformWindowsAMD64 represents the windows_amd64 target arch.
+	PlatformWindowsAMD64 = &PlatformType{"windows", "amd64"}
+)
+
+// Exec represents a single Go executable file.
+type Exec struct {
+	Path  string        // Path to the executable.
+	Type  *PlatformType // Fileutable file format.
+	table *gosym.Table
+}
+
+// NewExec tries to detect executable etype for the given path and returns
+// a new executable. It fails if file does not exist, is not a Go executable or
+// it's unable to parse the file format.
+func NewExec(path string) (*Exec, error) {
+	etyp, symtab, pclntab, text, err := dumbnew(path)
 	if err != nil {
-		return
+		return nil, err
 	}
+	lntab := gosym.NewLineTable(pclntab, text)
+	if lntab == nil {
+		return nil, ErrNotGoExec
+	}
+	tab, err := gosym.NewTable(symtab, lntab)
+	if err != nil {
+		return nil, ErrNotGoExec
+	}
+	return &Exec{Path: path, Type: etyp, table: tab}, nil
+}
+
+// Import gives the import path of main package of given executable. It returns
+// non-nil error when it fails to guess the exact path.
+func (ex *Exec) Import() (string, error) {
 	var dirs = make(map[string]struct{})
-	for file, obj := range ex.Table.Files {
+	for file, obj := range ex.table.Files {
 		for i := range obj.Funcs {
 			// main.main symbol is referenced by every file of each package
 			// imported by the main package of the executable.
@@ -56,10 +116,87 @@ func Look(path string) (importpath string, err error) {
 			}
 		}
 	}
-	if pkg, unique := guesspkg(filepath.Base(path), dirs); unique && pkg != "" {
-		return pkg, err
+	if pkg, unique := guesspkg(filepath.Base(ex.Path), dirs); unique && pkg != "" {
+		return pkg, nil
 	}
 	return "", ErrGuessFail
+}
+
+// Import reads the import path of main package of the Go executable from
+// the given path.
+func Import(file string) (string, error) {
+	ex, err := NewExec(file)
+	if err != nil {
+		return "", err
+	}
+	return ex.Import()
+}
+
+func dumbnew(path string) (etyp *PlatformType, symtab, pclntab []byte, text uint64, err error) {
+	for _, newfn := range newfns {
+		if etyp, symtab, pclntab, text, err = newfn(path); err == nil {
+			return
+		}
+		fmt.Println(path, err)
+	}
+	return
+}
+
+func newelf(path string) (etyp *PlatformType, symtab, pclntab []byte, text uint64, err error) {
+	f, err := elf.Open(path)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	switch [2]bool{f.FileHeader.Class == elf.ELFCLASS64, f.FileHeader.OSABI == elf.ELFOSABI_FREEBSD} {
+	case [2]bool{false, false}:
+		etyp = PlatformLinux386
+	case [2]bool{true, false}:
+		etyp = PlatformLinuxAMD64
+	case [2]bool{false, true}:
+		etyp = PlatformFreeBSD386
+	case [2]bool{true, true}:
+		etyp = PlatformFreeBSDAMD64
+	}
+	sym := f.Section(".gosymtab")
+	if sym == nil {
+		err = ErrNotGoExec
+		return
+	}
+	symtab, err = sym.Data()
+	if err != nil {
+		err = ErrNotGoExec
+		return
+	}
+	pcln := f.Section(".gopclntab")
+	if pcln == nil {
+		err = ErrNotGoExec
+		return
+	}
+	pclntab, err = pcln.Data()
+	if err != nil {
+		err = ErrNotGoExec
+		return
+	}
+	txt := f.Section(".text")
+	if txt == nil {
+		err = ErrNotGoExec
+		return
+	}
+	text = txt.Addr
+	return
+}
+
+func newmacho(path string) (etyp *PlatformType, symtab, pclntab []byte, text uint64, err error) {
+	// TODO(rjeczalik): osx support
+	err = errors.New("not implemented")
+	return
+}
+
+func newpe(path string) (etyp *PlatformType, symtab, pclntab []byte, text uint64, err error) {
+	// TODO(rjeczalik): windows support
+	err = errors.New("not implemented")
+	return
 }
 
 func isfiltered(file string) bool {
@@ -73,7 +210,7 @@ func isfiltered(file string) bool {
 
 func guesspkg(name string, dirs map[string]struct{}) (pkg string, unique bool) {
 	for _, s := range []string{"cmd/" + name, name} {
-		for dir, _ := range dirs {
+		for dir := range dirs {
 			if strings.Contains(dir, s) {
 				if i := strings.LastIndex(dir, "/src/"); i != -1 {
 					pkg = dir[i+len("/src/"):]
