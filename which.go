@@ -4,7 +4,6 @@ import (
 	"debug/elf"
 	"debug/gosym"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -137,7 +136,6 @@ func dumbnew(path string) (etyp *PlatformType, symtab, pclntab []byte, text uint
 		if etyp, symtab, pclntab, text, err = newfn(path); err == nil {
 			return
 		}
-		fmt.Println(path, err)
 	}
 	return
 }
