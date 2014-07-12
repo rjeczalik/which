@@ -2,52 +2,58 @@ package which
 
 import "debug/elf"
 
-type fileElf struct {
+type elftbl struct {
 	*elf.File
+	typ *PlatformType
 }
 
-type sectionElf struct {
-	*elf.Section
-}
-
-func (se sectionElf) addr() uint64 {
-	return se.Addr
-}
-
-func (se sectionElf) data() ([]byte, error) {
-	return se.Data()
-}
-
-func newelf(path string) (file, error) {
+func newelf(path string) (tabler, error) {
 	f, err := elf.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	return fileElf{f}, nil
-}
-
-func (fe fileElf) clos() {
-	fe.Close()
-}
-
-func (fe fileElf) typ() (ptyp *PlatformType) {
-	switch [2]bool{fe.FileHeader.Class == elf.ELFCLASS64, fe.FileHeader.OSABI == elf.ELFOSABI_FREEBSD} {
+	tbl := elftbl{f, nil}
+	switch [2]bool{tbl.FileHeader.Class == elf.ELFCLASS64, tbl.FileHeader.OSABI == elf.ELFOSABI_FREEBSD} {
 	case [2]bool{false, false}:
-		ptyp = PlatformLinux386
+		tbl.typ = PlatformLinux386
 	case [2]bool{true, false}:
-		ptyp = PlatformLinuxAMD64
+		tbl.typ = PlatformLinuxAMD64
 	case [2]bool{false, true}:
-		ptyp = PlatformFreeBSD386
+		tbl.typ = PlatformFreeBSD386
 	case [2]bool{true, true}:
-		ptyp = PlatformFreeBSDAMD64
+		tbl.typ = PlatformFreeBSDAMD64
 	}
-	return
+	return tbl, nil
 }
 
-func (fe fileElf) section(name string) section {
-	s := fe.Section("." + name)
-	if s == nil {
-		return nil
+func (tbl elftbl) Close() error {
+	return tbl.File.Close()
+}
+
+func (tbl elftbl) Pcln() ([]byte, error) {
+	pcln := tbl.Section(".gopclntab")
+	if pcln == nil {
+		return nil, ErrNotGoExec
 	}
-	return sectionElf{s}
+	return pcln.Data()
+}
+
+func (tbl elftbl) Sym() ([]byte, error) {
+	sym := tbl.Section(".gosymtab")
+	if sym == nil {
+		return nil, ErrNotGoExec
+	}
+	return sym.Data()
+}
+
+func (tbl elftbl) Text() (uint64, error) {
+	text := tbl.Section(".text")
+	if text == nil {
+		return 0, ErrNotGoExec
+	}
+	return text.Addr, nil
+}
+
+func (tbl elftbl) Type() *PlatformType {
+	return tbl.typ
 }

@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// TODO(rjeczalik): support rest platform types
+// TODO(rjeczalik): support all platform types
 
 func init() {
 	// Add $GOROOT and $GOROOT_FINAL to the filtered paths.
@@ -19,39 +19,27 @@ func init() {
 		filtered[runtime.GOROOT()] = struct{}{} // $GOROOT_FINAL
 		os.Setenv("GOROOT", goroot)
 	}
-	buildmacho := buildexec{newfile: newmacho, newtable: newunixtable}
-	buildelf := buildexec{newfile: newelf, newtable: newunixtable}
-	buildpe := buildexec{newfile: newpe, newtable: newwindowstable}
 	// Make the order of file factory methods platform-specific.
 	switch runtime.GOOS {
 	case "darwin":
-		all = append(all, buildmacho, buildelf, buildpe)
+		alltbl = append(alltbl, newmacho, newelf, newpe)
 	case "windows":
-		all = append(all, buildpe, buildmacho, buildelf)
+		alltbl = append(alltbl, newpe, newmacho, newelf)
 	default:
-		all = append(all, buildelf, buildmacho, buildpe)
+		alltbl = append(alltbl, newelf, newmacho, newpe)
 	}
 }
 
-type section interface {
-	addr() uint64
-	data() ([]byte, error)
+type tabler interface {
+	Close() error
+	Pcln() ([]byte, error)
+	Sym() ([]byte, error)
+	Text() (uint64, error)
+	Type() *PlatformType
 }
 
-type file interface {
-	clos()
-	section(string) section
-	typ() *PlatformType
-}
-
-// All supported executable parsers.
-var all []buildexec
-
-// TODO(rjeczalik): refactor to one func
-type buildexec struct {
-	newfile  func(string) (file, error)                         // reads executable file
-	newtable func(string, file) ([]byte, []byte, uint64, error) // loads Go symbol table
-}
+// All supported symbol table builders.
+var alltbl []func(string) (tabler, error)
 
 // A path is discarded if it contains any of the filtered strings.
 // TODO(rjeczalik): add $HOME/.gvm/gos?
@@ -76,8 +64,8 @@ type PlatformType struct {
 }
 
 // String gives Go platform string.
-func (ptyp PlatformType) String() string {
-	return ptyp.GOOS + "_" + ptyp.GOARCH
+func (typ PlatformType) String() string {
+	return typ.GOOS + "_" + typ.GOARCH
 }
 
 var (
@@ -106,11 +94,11 @@ type Exec struct {
 	table *gosym.Table
 }
 
-// NewExec tries to detect executable ptype for the given path and returns
+// NewExec tries to detect executable type for the given path and returns
 // a new executable. It fails if file does not exist, is not a Go executable or
 // it's unable to parse the file format.
 func NewExec(path string) (*Exec, error) {
-	ptyp, symtab, pclntab, text, err := dumbbuild(path)
+	typ, symtab, pclntab, text, err := newtbl(path)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +110,7 @@ func NewExec(path string) (*Exec, error) {
 	if err != nil {
 		return nil, ErrNotGoExec
 	}
-	return &Exec{Path: path, Type: ptyp, table: tab}, nil
+	return &Exec{Path: path, Type: typ, table: tab}, nil
 }
 
 // Import gives the import path of main package of given executable. It returns
@@ -148,59 +136,38 @@ func (ex *Exec) Import() (string, error) {
 	return "", ErrGuessFail
 }
 
-// Import reads the import path of main package of the Go executable from
-// the given path.
-func Import(file string) (string, error) {
-	ex, err := NewExec(file)
+// Import reads the import path of main package of the Go executable given by
+// the path.
+func Import(path string) (string, error) {
+	ex, err := NewExec(path)
 	if err != nil {
 		return "", err
 	}
 	return ex.Import()
 }
 
-func dumbbuild(path string) (ptyp *PlatformType, symtab, pclntab []byte, text uint64, err error) {
-	var f file
-	for _, builder := range all {
-		if f, err = builder.newfile(path); err != nil {
+func newtbl(path string) (typ *PlatformType, symtab, pclntab []byte, text uint64, err error) {
+	var tbl tabler
+	for _, newt := range alltbl {
+		if tbl, err = newt(path); err != nil {
 			continue
 		}
-		if symtab, pclntab, text, err = builder.newtable(path, f); err == nil {
-			ptyp = f.typ()
-			f.clos()
-			return
+		if symtab, err = tbl.Sym(); err != nil {
+			tbl.Close()
+			continue
 		}
-		f.clos()
+		if pclntab, err = tbl.Pcln(); err != nil {
+			tbl.Close()
+			continue
+		}
+		if text, err = tbl.Text(); err != nil {
+			tbl.Close()
+			continue
+		}
+		typ = tbl.Type()
+		tbl.Close()
+		break
 	}
-	return
-}
-
-func newunixtable(path string, f file) (symtab, pclntab []byte, text uint64, err error) {
-	sym := f.section("gosymtab")
-	if sym == nil {
-		err = ErrNotGoExec
-		return
-	}
-	symtab, err = sym.data()
-	if err != nil {
-		err = ErrNotGoExec
-		return
-	}
-	pcln := f.section("gopclntab")
-	if pcln == nil {
-		err = ErrNotGoExec
-		return
-	}
-	pclntab, err = pcln.data()
-	if err != nil {
-		err = ErrNotGoExec
-		return
-	}
-	txt := f.section("text")
-	if txt == nil {
-		err = ErrNotGoExec
-		return
-	}
-	text = txt.addr()
 	return
 }
 

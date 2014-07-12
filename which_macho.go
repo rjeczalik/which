@@ -2,49 +2,54 @@ package which
 
 import "debug/macho"
 
-type fileMacho struct {
+type machotbl struct {
 	*macho.File
+	typ *PlatformType
 }
 
-type sectionMacho struct {
-	*macho.Section
-}
-
-func (sm sectionMacho) addr() uint64 {
-	return sm.Addr
-}
-
-func (sm sectionMacho) data() ([]byte, error) {
-	return sm.Data()
-}
-
-func newmacho(path string) (file, error) {
+func newmacho(path string) (tabler, error) {
 	f, err := macho.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	fe := fileMacho{f}
-	return fe, nil
-}
-
-func (fm fileMacho) clos() {
-	fm.Close()
-}
-
-func (fm fileMacho) typ() (ptyp *PlatformType) {
-	switch fm.Cpu {
+	tbl := machotbl{f, nil}
+	switch tbl.Cpu {
 	case macho.Cpu386:
-		ptyp = PlatformDarwin386
+		tbl.typ = PlatformDarwin386
 	case macho.CpuAmd64:
-		ptyp = PlatformDarwinAMD64
+		tbl.typ = PlatformDarwinAMD64
 	}
-	return
+	return tbl, nil
 }
 
-func (fm fileMacho) section(name string) section {
-	s := fm.Section("__" + name)
-	if s == nil {
-		return nil
+func (tbl machotbl) Close() error {
+	return tbl.File.Close()
+}
+
+func (tbl machotbl) Pcln() ([]byte, error) {
+	pcln := tbl.Section("__gopclntab")
+	if pcln == nil {
+		return nil, ErrNotGoExec
 	}
-	return sectionMacho{s}
+	return pcln.Data()
+}
+
+func (tbl machotbl) Sym() ([]byte, error) {
+	sym := tbl.Section("__gosymtab")
+	if sym == nil {
+		return nil, ErrNotGoExec
+	}
+	return sym.Data()
+}
+
+func (tbl machotbl) Text() (uint64, error) {
+	text := tbl.Section("__text")
+	if text == nil {
+		return 0, ErrNotGoExec
+	}
+	return text.Addr, nil
+}
+
+func (tbl machotbl) Type() *PlatformType {
+	return tbl.typ
 }

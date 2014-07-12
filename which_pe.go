@@ -5,46 +5,54 @@ import (
 	"fmt"
 )
 
-type filePE struct {
-	base uint64
-	ptyp *PlatformType
+type petbl struct {
 	*pe.File
+	typ  *PlatformType
+	base uint64
 }
 
-func newpe(path string) (file, error) {
+func newpe(path string) (tabler, error) {
 	f, err := pe.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	fe := filePE{0, nil, f}
-	switch oh := f.OptionalHeader.(type) {
+	tbl := petbl{f, nil, 0}
+	switch oh := tbl.OptionalHeader.(type) {
 	case *pe.OptionalHeader32:
-		fe.base = uint64(oh.ImageBase)
-		fe.ptyp = PlatformWindows386
+		tbl.base = uint64(oh.ImageBase)
+		tbl.typ = PlatformWindows386
 	case *pe.OptionalHeader64:
-		fe.base = oh.ImageBase
-		fe.ptyp = PlatformWindowsAMD64
+		tbl.base = oh.ImageBase
+		tbl.typ = PlatformWindowsAMD64
 	default:
-		f.Close()
+		tbl.Close()
 		return nil, ErrNotGoExec
 	}
-	return fe, nil
+	return tbl, nil
 }
 
-func (fe filePE) clos()                  { fe.Close() }
-func (fe filePE) typ() *PlatformType     { return fe.ptyp }
-func (fe filePE) section(string) section { return (section)(nil) }
+func (tbl petbl) Close() error {
+	return tbl.File.Close()
+}
 
-func newwindowstable(path string, f file) (symtab, pclntab []byte, text uint64, err error) {
-	fe := f.(filePE)
-	if txt := fe.Section(".text"); txt != nil {
-		text = fe.base + uint64(txt.VirtualAddress)
+func (tbl petbl) Pcln() ([]byte, error) {
+	return loadPETable(tbl.File, "pclntab", "epclntab")
+}
+
+func (tbl petbl) Sym() ([]byte, error) {
+	return loadPETable(tbl.File, "symtab", "esymtab")
+}
+
+func (tbl petbl) Text() (uint64, error) {
+	text := tbl.Section(".text")
+	if text == nil {
+		return 0, ErrNotGoExec
 	}
-	if pclntab, err = loadPETable(fe.File, "pclntab", "epclntab"); err != nil {
-		return
-	}
-	symtab, err = loadPETable(fe.File, "symtab", "esymtab")
-	return
+	return tbl.base + uint64(text.VirtualAddress), nil
+}
+
+func (tbl petbl) Type() *PlatformType {
+	return tbl.typ
 }
 
 // findPESymbol was stolen from $GOROOT/src/cmd/addr2line/main.go:181
