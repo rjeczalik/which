@@ -5,9 +5,8 @@ import "testing"
 const echo = "github.com/rjeczalik/which/testdata/cmd/echo"
 
 var testdata = map[*PlatformType]string{
-	// TODO(rjeczalik): #1
-	// PlatformDarwin386:    "testdata/darwin_386/echo",
-	// PlatformDarwinAMD64:  "testdata/darwin_amd64/echo",
+	PlatformDarwin386:    "testdata/darwin_386/echo",
+	PlatformDarwinAMD64:  "testdata/darwin_amd64/echo",
 	PlatformFreeBSD386:   "testdata/freebsd_386/echo",
 	PlatformFreeBSDAMD64: "testdata/freebsd_amd64/echo",
 	PlatformLinux386:     "testdata/linux_386/echo",

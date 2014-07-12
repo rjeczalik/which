@@ -19,7 +19,13 @@ func init() {
 		filtered[runtime.GOROOT()] = struct{}{} // $GOROOT_FINAL
 		os.Setenv("GOROOT", goroot)
 	}
-	newfiles = append(newfiles, newelf)
+	// Make the order of file factory methods platform-specific.
+	switch runtime.GOOS {
+	case "darwin":
+		newfiles = append(newfiles, newmacho, newelf)
+	default:
+		newfiles = append(newfiles, newelf, newmacho)
+	}
 }
 
 type section interface {
@@ -152,7 +158,7 @@ func dumbnew(path string) (etyp *PlatformType, symtab, pclntab []byte, text uint
 }
 
 func newfile(path string, f file) (symtab, pclntab []byte, text uint64, err error) {
-	sym := f.section(".gosymtab")
+	sym := f.section("gosymtab")
 	if sym == nil {
 		err = ErrNotGoExec
 		return
@@ -162,7 +168,7 @@ func newfile(path string, f file) (symtab, pclntab []byte, text uint64, err erro
 		err = ErrNotGoExec
 		return
 	}
-	pcln := f.section(".gopclntab")
+	pcln := f.section("gopclntab")
 	if pcln == nil {
 		err = ErrNotGoExec
 		return
@@ -172,7 +178,7 @@ func newfile(path string, f file) (symtab, pclntab []byte, text uint64, err erro
 		err = ErrNotGoExec
 		return
 	}
-	txt := f.section(".text")
+	txt := f.section("text")
 	if txt == nil {
 		err = ErrNotGoExec
 		return

@@ -45,7 +45,7 @@ func (fe fileElf) typ() (etyp *PlatformType) {
 }
 
 func (fe fileElf) section(name string) section {
-	s := fe.Section(name)
+	s := fe.Section("." + name)
 	if s == nil {
 		return nil
 	}
