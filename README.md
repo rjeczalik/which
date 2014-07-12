@@ -31,6 +31,10 @@ Package which shows the import path of Go executables.
 ~ $ gowhich godoc
 code.google.com/p/go.tools/cmd/godoc
 ```
+```bash
+~ $ gowhich ~/bin/godoc
+code.google.com/p/go.tools/cmd/godoc
+```
 
 ## cmd/gofile [![GoDoc](https://godoc.org/github.com/rjeczalik/which/cmd/gofile?status.png)](https://godoc.org/github.com/rjeczalik/which/cmd/gofile)
 
@@ -49,5 +53,9 @@ code.google.com/p/go.tools/cmd/godoc
 
 ```bash
 ~ $ gofile godoc
+darwin_amd64
+```
+```bash
+~ $ gofile ~/bin/godoc
 darwin_amd64
 ```
