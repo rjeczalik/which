@@ -31,12 +31,12 @@ func (fm fileMacho) clos() {
 	fm.Close()
 }
 
-func (fm fileMacho) typ() (etyp *PlatformType) {
+func (fm fileMacho) typ() (ptyp *PlatformType) {
 	switch fm.Cpu {
 	case macho.Cpu386:
-		etyp = PlatformDarwin386
+		ptyp = PlatformDarwin386
 	case macho.CpuAmd64:
-		etyp = PlatformDarwinAMD64
+		ptyp = PlatformDarwinAMD64
 	}
 	return
 }

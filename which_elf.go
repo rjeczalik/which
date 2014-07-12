@@ -30,16 +30,16 @@ func (fe fileElf) clos() {
 	fe.Close()
 }
 
-func (fe fileElf) typ() (etyp *PlatformType) {
+func (fe fileElf) typ() (ptyp *PlatformType) {
 	switch [2]bool{fe.FileHeader.Class == elf.ELFCLASS64, fe.FileHeader.OSABI == elf.ELFOSABI_FREEBSD} {
 	case [2]bool{false, false}:
-		etyp = PlatformLinux386
+		ptyp = PlatformLinux386
 	case [2]bool{true, false}:
-		etyp = PlatformLinuxAMD64
+		ptyp = PlatformLinuxAMD64
 	case [2]bool{false, true}:
-		etyp = PlatformFreeBSD386
+		ptyp = PlatformFreeBSD386
 	case [2]bool{true, true}:
-		etyp = PlatformFreeBSDAMD64
+		ptyp = PlatformFreeBSDAMD64
 	}
 	return
 }
