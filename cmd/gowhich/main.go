@@ -54,9 +54,9 @@ func main() {
 	if err != nil {
 		die(err)
 	}
-	imp, err := which.Import(path)
+	pkg, err := which.Import(path)
 	if err != nil {
 		die(err)
 	}
-	fmt.Println(imp)
+	fmt.Println(pkg)
 }
