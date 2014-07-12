@@ -148,20 +148,25 @@ func Import(path string) (string, error) {
 
 func newtbl(path string) (typ *PlatformType, symtab, pclntab []byte, text uint64, err error) {
 	var tbl tabler
+	fail := func() {
+		err = errors.New("which: unable to read Go symbol table: " + err.Error())
+		tbl.Close()
+	}
 	for _, newt := range alltbl {
 		if tbl, err = newt(path); err != nil {
+			err = ErrNotGoExec
 			continue
 		}
 		if symtab, err = tbl.Sym(); err != nil {
-			tbl.Close()
+			fail()
 			continue
 		}
 		if pclntab, err = tbl.Pcln(); err != nil {
-			tbl.Close()
+			fail()
 			continue
 		}
 		if text, err = tbl.Text(); err != nil {
-			tbl.Close()
+			fail()
 			continue
 		}
 		typ = tbl.Type()
