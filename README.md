@@ -4,7 +4,7 @@ Package which shows the import path of Go executables.
 
 *Installation*
 
-```
+```bash
 ~ $ go get -u github.com/rjeczalik/which
 ```
 
@@ -16,7 +16,7 @@ Package which shows the import path of Go executables.
 
 *Installation*
 
-```
+```bash
 ~ $ go get -u github.com/rjeczalik/which/cmd/gowhich
 ~ $ go install github.com/rjeczalik/which/cmd/gowhich
 ```
@@ -24,3 +24,30 @@ Package which shows the import path of Go executables.
 *Documentation*
 
 [godoc.org/github.com/rjeczalik/which/cmd/gowhich](http://godoc.org/github.com/rjeczalik/which/cmd/gowhich)
+
+*Example usage*
+
+```bash
+~ $ gowhich godoc
+code.google.com/p/go.tools/cmd/godoc
+```
+
+## cmd/gofile [![GoDoc](https://godoc.org/github.com/rjeczalik/which/cmd/gofile?status.png)](https://godoc.org/github.com/rjeczalik/which/cmd/gofile)
+
+*Installation*
+
+```bash
+~ $ go get -u github.com/rjeczalik/which/cmd/gofile
+~ $ go install github.com/rjeczalik/which/cmd/gofile
+```
+
+*Documentation*
+
+[godoc.org/github.com/rjeczalik/which/cmd/gofile](http://godoc.org/github.com/rjeczalik/which/cmd/gofile)
+
+*Example usage*
+
+```bash
+~ $ gofile godoc
+darwin_amd64
+```
