@@ -1,6 +1,9 @@
 package which
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 const echo = "github.com/rjeczalik/which/testdata/cmd/echo"
 
@@ -17,7 +20,7 @@ var testdata = map[*PlatformType]string{
 
 func TestNewExec(t *testing.T) {
 	for typ, path := range testdata {
-		ex, err := NewExec(path)
+		ex, err := NewExec(filepath.FromSlash(path))
 		if err != nil {
 			t.Errorf("want err=nil; got %q (typ=%v)", err, typ)
 			continue
@@ -30,7 +33,7 @@ func TestNewExec(t *testing.T) {
 
 func TestImport(t *testing.T) {
 	for typ, path := range testdata {
-		ex, err := NewExec(path)
+		ex, err := NewExec(filepath.FromSlash(path))
 		if err != nil {
 			t.Errorf("want err=nil; got %q (typ=%v)", err, typ)
 			continue
