@@ -48,3 +48,16 @@ func TestImport(t *testing.T) {
 		}
 	}
 }
+
+func TestType(t *testing.T) {
+	for typ, path := range testdata {
+		ex, err := NewExec(filepath.FromSlash(path))
+		if err != nil {
+			t.Errorf("want err=nil; got %q (typ=%v)", err, typ)
+			continue
+		}
+		if ex.Type != typ {
+			t.Errorf("want ex.Typ=%v; got %v (typ=%v)", typ, ex.Type, typ)
+		}
+	}
+}
