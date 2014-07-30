@@ -1,4 +1,4 @@
-## which [![GoDoc](https://godoc.org/github.com/rjeczalik/which?status.png)](https://godoc.org/github.com/rjeczalik/which) [![Build Status](https://travis-ci.org/rjeczalik/which.png?branch=master)](https://travis-ci.org/rjeczalik/which)[![Build status](https://ci.appveyor.com/api/projects/status/t97eqlnkpbb7chxx)](https://ci.appveyor.com/project/rjeczalik/which)
+## which [![GoDoc](https://godoc.org/github.com/rjeczalik/which?status.png)](https://godoc.org/github.com/rjeczalik/which) [![Build Status](https://travis-ci.org/rjeczalik/which.png?branch=master)](https://travis-ci.org/rjeczalik/which "linux_amd64") [![Build Status](https://travis-ci.org/rjeczalik/which.png?branch=osx)](https://travis-ci.org/rjeczalik/which "darwin_amd64") [![Build status](https://ci.appveyor.com/api/projects/status/t97eqlnkpbb7chxx)](https://ci.appveyor.com/project/rjeczalik/which "windows_amd64")
 
 Package which shows the import path of Go executables.
 
