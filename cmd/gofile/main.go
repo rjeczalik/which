@@ -19,7 +19,7 @@ import (
 )
 
 func die(v interface{}) {
-	fmt.Println(os.Stderr, v)
+	fmt.Fprintln(os.Stderr, v)
 	os.Exit(1)
 }
 
