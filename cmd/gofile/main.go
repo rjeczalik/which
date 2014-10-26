@@ -6,7 +6,7 @@
 //
 // Example usage
 //
-//   ~ $ gowhich godoc
+//   ~ $ gofile godoc
 //   darwin_amd64
 package main
 
